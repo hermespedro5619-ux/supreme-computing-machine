@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Almacén e Inventario Fiscal</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #27ae60;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--primary);
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .grid-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            background: #fdfdfd;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--secondary);
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 5px rgba(39, 174, 96, 0.2);
+        }
+
+        .button-group {
+            margin-top: 25px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-save { background-color: var(--accent); color: white; }
+        .btn-save:hover { background-color: #219150; }
+
+        .btn-pdf { background-color: var(--danger); color: white; }
+        .btn-pdf:hover { background-color: #c0392b; }
+
+        .table-container {
+            margin-top: 40px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover { background-color: #f9f9f9; }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-pending { background: #fff3cd; color: #856404; }
+
+        .btn-delete {
+            background: none;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .btn-delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Sistema de Gestión de Almacén (Fiscal DR)</h2>
+    
+    <form id="inventory-form">
+        <div class="grid-form">
+            <div class="form-group">
+                <label>RNC / Cédula</label>
+                <input type="text" id="rnc" placeholder="Ejem: 101000000">
+            </div>
+            <div class="form-group">
+                <label>Número de Factura (NCF)</label>
+                <input type="text" id="ncf" placeholder="B0100000001" maxlength="13">
+            </div>
+            <div class="form-group">
+                <label>Clasificador Presupuestario</label>
+                <input type="text" id="clasificador" placeholder="Ejem: 2.3.1.1">
+            </div>
+            <div class="form-group">
+                <label>Código Artículo</label>
+                <input type="text" id="codigo" placeholder="ID-001">
+            </div>
+            <div class="form-group">
+                <label>Nombre del Artículo</label>
+                <input type="text" id="nombre" placeholder="Descripción">
+            </div>
+            <div class="form-group">
+                <label>Categoría / Ubicación</label>
+                <input type="text" id="ubicacion" placeholder="Pasillo A - Estante 2">
+            </div>
+            <div class="form-group">
+                <label>Cantidad</label>
+                <input type="number" id="cantidad" value="1" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Precio Unitario (Sin ITBIS)</label>
+                <input type="number" id="precio" placeholder="0.00" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Descuento Total</label>
+                <input type="number" id="descuento" value="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>% ITBIS</label>
+                <input type="number" id="itbis_porc" value="18">
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button type="button" onclick="agregarArticulo()" class="btn-save">Guardar Artículo</button>
+            <button type="button" onclick="generarPDF()" class="btn-pdf">Generar Reporte PDF</button>
+        </div>
+    </form>
+
+    <div class="table-container">
+        <table id="tabla-inventario">
+            <thead>
+                <tr>
+                    <th>NCF / DGII</th>
+                    <th>Clasificador</th>
+                    <th>Descripción</th>
+                    <th>Cant.</th>
+                    <th>Precio S/I</th>
+                    <th>Desc.</th>
+                    <th>ITBIS</th>
+                    <th>Total Neto</th>
+                    <th>Total c/I</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="lista-articulos">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const { jsPDF } = window.jspdf;
+    let inventario = JSON.parse(localStorage.getItem('articulos_db')) || [];
+
+    // Cargar datos al iniciar
+    document.addEventListener('DOMContentLoaded', actualizarTabla);
+
+    function validarNCF(ncf) {
+        // Validación simplificada para NCF dominicano (B01, B02, E31, etc)
+        const ncfRegex = /^[BE][0-9]{10,12}$/i;
+        return ncfRegex.test(ncf);
+    }
+
+    function agregarArticulo() {
+        const ncfInput = document.getElementById('ncf').value.trim().toUpperCase();
+        
+        const item = {
+            id: Date.now(),
+            rnc: document.getElementById('rnc').value,
+            ncf: ncfInput,
+            verificado: validarNCF(ncfInput) ? "VERIFICADO" : "PENDIENTE",
+            clasificador: document.getElementById('clasificador').value,
+            codigo: document.getElementById('codigo').value,
+            nombre: document.getElementById('nombre').value,
+            ubicacion: document.getElementById('ubicacion').value,
+            cantidad: parseFloat(document.getElementById('cantidad').value) || 0,
+            precioSinItbis: parseFloat(document.getElementById('precio').value) || 0,
+            descuento: parseFloat(document.getElementById('descuento').value) || 0,
+            itbisPorc: parseFloat(document.getElementById('itbis_porc').value) / 100
+        };
+
+        if(!item.nombre || !item.precioSinItbis) {
+            alert("Por favor complete el nombre y precio del artículo.");
+            return;
+        }
+
+        // --- CÁLCULOS SOLICITADOS ---
+        // 1. Total Neto = (Cantidad * Precio) - Descuento
+        item.totalNeto = (item.cantidad * item.precioSinItbis) - item.descuento;
+        
+        // 2. Cálculo ITBIS = (Subtotal - Descuento) * %
+        // Nota: El descuento se resta antes de calcular el impuesto
+        const baseImponible = (item.precioSinItbis - (item.descuento / item.cantidad));
+        item.montoItbis = (item.cantidad * baseImponible) * item.itbisPorc;
+        
+        // 3. Total con ITBIS
+        item.totalConItbis = item.totalNeto + item.montoItbis;
+
+        inventario.push(item);
+        localStorage.setItem('articulos_db', JSON.stringify(inventario));
+        actualizarTabla();
+        document.getElementById('inventory-form').reset();
+    }
+
+    function actualizarTabla() {
+        const tbody = document.getElementById('lista-articulos');
+        tbody.innerHTML = '';
+        
+        inventario.forEach((item, index) => {
+            const statusClass = item.verificado === "VERIFICADO" ? "status-ok" : "status-pending";
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>${item.ncf}</b><br><span class="status-badge ${statusClass}">${item.verificado}</span></td>
+                    <td><small>${item.clasificador}</small></td>
+                    <td>${item.nombre}<br><small style="color:gray">${item.codigo}</small></td>
+                    <td>${item.cantidad}</td>
+                    <td>${item.precioSinItbis.toFixed(2)}</td>
+                    <td>${item.descuento.toFixed(2)}</td>
+                    <td>${item.montoItbis.toFixed(2)}</td>
+                    <td>${item.totalNeto.toFixed(2)}</td>
+                    <td><b>${item.totalConItbis.toFixed(2)}</b></td>
+                    <td><button class="btn-delete" onclick="eliminar(${index})">Eliminar</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    function eliminar(index) {
+        if(confirm("¿Seguro que desea eliminar este registro?")) {
+            inventario.splice(index, 1);
+            localStorage.setItem('articulos_db', JSON.stringify(inventario));
+            actualizarTabla();
+        }
+    }
+
+    function generarPDF() {
+        if(inventario.length === 0) {
+            alert("No hay artículos registrados para generar el reporte.");
+            return;
+        }
+
+        const doc = new jsPDF('landscape');
+        const fechaActual = new Date().toLocaleString();
+        
+        // --- Encabezado ---
+        doc.setFillColor(44, 62, 80);
+        doc.rect(0, 0, 300, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.text("SISTEMA DE GESTIÓN DE ALMACÉN", 14, 20);
+        
+        doc.setFontSize(10);
+        doc.text("Reporte de Movimiento de Inventario y Control de Presupuesto", 14, 28);
+        doc.text(`Generado el: ${fechaActual}`, 230, 28);
+
+        // --- Tabla ---
+        const rows = inventario.map(i => [
+            i.ncf, 
+            i.clasificador, 
+            i.nombre, 
+            i.cantidad, 
+            i.precioSinItbis.toFixed(2), 
+            i.montoItbis.toFixed(2), 
+            i.totalConItbis.toFixed(2)
+        ]);
+
+        doc.autoTable({
+            startY: 45,
+            head: [['NCF', 'Clasificador', 'Articulo', 'Cant', 'Precio S/I', 'ITBIS', 'Total C/I']],
+            body: rows,
+            headStyles: { fillColor: [39, 174, 96] },
+            styles: { fontSize: 9 }
+        });
+
+        // --- Firmas ---
+        const finalY = doc.lastAutoTable.finalY + 40;
+        doc.setTextColor(0, 0, 0);
+        
+        // Izquierda
+        doc.line(20, finalY, 100, finalY);
+        doc.text("DESPACHADO POR", 40, finalY + 7);
+        
+        // Derecha
+        doc.line(190, finalY, 270, finalY);
+        doc.text("RECIBIDO CONFORME", 210, finalY + 7);
+
+        doc.save(`Reporte_Almacen_${Date.now()}.pdf`);
+    }
+</script>
+
+</body>
+</html>
